@@ -1,0 +1,271 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <map>
+#include <queue>
+#include <ctime>
+#include <fstream>
+#include <iomanip>
+
+using namespace std;
+
+// Doctor class definition
+class Doctor {
+public:
+    int id;
+    string name;
+    string specialty;
+    float fee;
+    bool isSenior;
+
+    Doctor() : id(0), name(""), specialty(""), fee(0.0), isSenior(true) {}
+    Doctor(int id, string name, string specialty, float fee, bool isSenior = true)
+        : id(id), name(name), specialty(specialty), fee(fee), isSenior(isSenior) {}
+};
+
+// Patient class definition
+class Patient {
+public:
+    int id;
+    string name;
+    int age;
+    string disease;
+    string contact;
+    bool requiresRoom;
+    string roomType;
+    int roomNumber;
+    int treatedDoctorId;
+    float totalBill;
+
+    Patient() : id(0), name(""), age(0), disease(""), contact(""), 
+                requiresRoom(false), roomType("Normal"), roomNumber(0), 
+                treatedDoctorId(0), totalBill(0) {}
+
+    Patient(int id, string name, int age, string disease, string contact, 
+            bool requiresRoom, string roomType, int roomNumber, 
+            int doctorId, float bill)
+        : id(id), name(name), age(age), disease(disease), contact(contact),
+          requiresRoom(requiresRoom), roomType(roomType), roomNumber(roomNumber), 
+          treatedDoctorId(doctorId), totalBill(bill) {}
+
+    void display(const map<int, Doctor>& doctorList) const {
+        cout << left << setw(5) << id 
+             << setw(15) << name 
+             << setw(5) << age 
+             << setw(20) << disease
+             << setw(15) << contact 
+             << setw(20) << (requiresRoom ? roomType + " (" + to_string(roomNumber) + ")" : "None")
+             << setw(20) << doctorList.at(treatedDoctorId).name
+             << setw(10) << "?" << totalBill << "\n";
+    }
+};
+
+// Structure to hold deleted patient information
+struct DischargedPatient {
+    int id;
+    time_t deletionTime;
+};
+
+// Hospital Management System
+class HospitalManagementSystem {
+private:
+    vector<Patient> patients;
+    map<int, Doctor> doctors;
+    queue<DischargedPatient> dischargedPatients;
+    int nextRoomNumber; // To keep track of the next available room number
+    const string adminPassword = "admin123"; // Admin password for login
+
+    Patient* findPatientById(int id) {
+        for (auto& patient : patients) {
+            if (patient.id == id) return &patient;
+        }
+        return nullptr;
+    }
+
+public:
+    HospitalManagementSystem() : nextRoomNumber(101) {
+        doctors[1] = Doctor(1, "Dr. Dinesh", "Cardiologist", 250.0, true);
+        doctors[2] = Doctor(2, "Dr. Charan", "Neurologist", 300.0, false);
+        doctors[3] = Doctor(3, "Dr. Kiran", "Orthopedic", 150.0, true);
+    }
+
+    bool login() {
+        string password;
+        cout << "Enter admin password: ";
+        cin >> password;
+        if (password == adminPassword) {
+            cout << "Login successful!\n";
+            return true;
+        } else {
+            cout << "Incorrect password. Access denied.\n";
+            return false;
+        }
+    }
+
+    void showDoctorList() const {
+        cout << left << setw(5) << "ID" << setw(15) << "Name" << setw(20) << "Specialty" 
+             << setw(10) << "Fee (?)" << setw(10) << "Senior" << "\n";
+        cout << "------------------------------------------------------------\n";
+        for (const auto& doctor : doctors) {
+            cout << left << setw(5) << doctor.second.id << setw(15) << doctor.second.name 
+                 << setw(20) << doctor.second.specialty << setw(10) << doctor.second.fee
+                 << setw(10) << (doctor.second.isSenior ? "Yes" : "No") << "\n";
+        }
+    }
+
+    void addPatient(int id, string name, int age, string disease, string contact, bool requiresRoom, string roomType, int doctorId) {
+        if (findPatientById(id) != nullptr) {
+            cout << "Patient with ID " << id << " already exists.\n";
+            return;
+        }
+        if (doctors.find(doctorId) == doctors.end()) {
+            cout << "Doctor with ID " << doctorId << " not found.\n";
+            return;
+        }
+        float bill = doctors[doctorId].fee;
+        int roomNumber = 0;
+
+        if (requiresRoom) {
+            bill += (roomType == "Normal" ? 500 : 1000);
+            roomNumber = nextRoomNumber++;
+        }
+
+        patients.push_back(Patient(id, name, age, disease, contact, requiresRoom, roomType, roomNumber, doctorId, bill));
+        cout << "Patient added successfully.\n";
+    }
+
+    void viewPatients() const {
+        if (patients.empty()) {
+            cout << "No patients in the system.\n";
+            return;
+        }
+        cout << left << setw(5) << "ID" << setw(15) << "Name" << setw(5) << "Age" << setw(20) << "Disease"
+             << setw(15) << "Contact" << setw(20) << "Room" << setw(20) << "Doctor" << setw(10) << "Total Bill (?)\n";
+        cout << "---------------------------------------------------------------------------------------------------------\n";
+        for (const auto& patient : patients) {
+            patient.display(doctors);
+        }
+    }
+
+    void savePrescription(int id) {
+        Patient* patient = findPatientById(id);
+        if (patient) {
+            ofstream file("Patient_" + to_string(id) + "_Prescription.txt");
+            if (file.is_open()) {
+                file << "Prescription for Patient ID: " << id << "\n";
+                file << "Name: " << patient->name << "\nDisease: " << patient->disease
+                     << "\nDoctor: " << doctors[patient->treatedDoctorId].name << "\n";
+                file << "Total Bill: ?" << patient->totalBill << "\n";
+                file.close();
+                cout << "Prescription saved successfully.\n";
+            } else {
+                cout << "Error opening file for writing.\n";
+            }
+        } else {
+            cout << "Patient with ID " << id << " not found.\n";
+        }
+    }
+
+    void deletePatient(int id) {
+        for (auto it = patients.begin(); it != patients.end(); ++it) {
+            if (it->id == id) {
+                dischargedPatients.push({id, time(0)});
+                patients.erase(it);
+                cout << "Patient with ID " << id << " discharged.\n";
+                return;
+            }
+        }
+        cout << "Patient not found.\n";
+    }
+
+    void searchPatient(int id) {
+        Patient* patient = findPatientById(id);
+        if (patient) {
+            cout << left << setw(5) << "ID" << setw(15) << "Name" << setw(5) << "Age" << setw(20) << "Disease"
+                 << setw(15) << "Contact" << setw(20) << "Room" << setw(20) << "Doctor" << setw(10) << "Total Bill (?)\n";
+            patient->display(doctors);
+        } else {
+            cout << "Patient with ID " << id << " not found.\n";
+        }
+    }
+};
+
+int main() {
+    HospitalManagementSystem hms;
+    if (!hms.login()) {
+        return 0; // Exit if login fails
+    }
+
+    int choice, id, age, doctorId;
+    string name, disease, contact, roomType;
+    bool requiresRoom;
+
+    do {
+        cout << "\nHospital Management System Menu:\n";
+        cout << "1. Show Doctors List\n";
+        cout << "2. Add Patient\n";
+        cout << "3. View Patients\n";
+        cout << "4. Save Prescription\n";
+        cout << "5. Delete Patient\n";
+        cout << "6. Search Patient\n";
+        cout << "7. Exit\n";
+        cout << "Enter your choice: ";
+        cin >> choice;
+
+        switch (choice) {
+        case 1:
+            hms.showDoctorList();
+            break;
+        case 2:
+            cout << "Enter Patient ID: ";
+            cin >> id;
+            cout << "Enter Name: ";
+            cin.ignore(); // Ignore newline character from previous input
+            getline(cin, name);
+            cout << "Enter Age: ";
+            cin >> age;
+            cout << "Enter Disease: ";
+            cin.ignore(); // Ignore newline character
+            getline(cin, disease);
+            cout << "Enter Contact Number: ";
+            getline(cin, contact);
+            cout << "Does the patient require a room? (1 for yes, 0 for no): ";
+            cin >> requiresRoom;
+            if (requiresRoom) {
+                cout << "Enter Room Type (Normal/Deluxe): ";
+                cin >> roomType;
+            } else {
+                roomType = "Normal";
+            }
+            cout << "Enter Doctor ID: ";
+            cin >> doctorId;
+            hms.addPatient(id, name, age, disease, contact, requiresRoom, roomType, doctorId);
+            break;
+        case 3:
+            hms.viewPatients();
+            break;
+        case 4:
+            cout << "Enter Patient ID to save prescription: ";
+            cin >> id;
+            hms.savePrescription(id);
+            break;
+        case 5:
+            cout << "Enter Patient ID to delete: ";
+            cin >> id;
+            hms.deletePatient(id);
+            break;
+        case 6:
+            cout << "Enter Patient ID to search: ";
+            cin >> id;
+            hms.searchPatient(id);
+            break;
+        case 7:
+            cout << "Exiting...\n";
+            break;
+        default:
+            cout << "Invalid choice. Try again.\n";
+        }
+    } while (choice != 7);
+
+    return 0;
+}
