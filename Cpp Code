@@ -4,7 +4,6 @@
 #include <map>
 #include <queue>
 #include <ctime>
-#include <fstream>
 #include <iomanip>
 
 using namespace std;
@@ -147,25 +146,6 @@ public:
         }
     }
 
-    void savePrescription(int id) {
-        Patient* patient = findPatientById(id);
-        if (patient) {
-            ofstream file("Patient_" + to_string(id) + "_Prescription.txt");
-            if (file.is_open()) {
-                file << "Prescription for Patient ID: " << id << "\n";
-                file << "Name: " << patient->name << "\nDisease: " << patient->disease
-                     << "\nDoctor: " << doctors[patient->treatedDoctorId].name << "\n";
-                file << "Total Bill: ?" << patient->totalBill << "\n";
-                file.close();
-                cout << "Prescription saved successfully.\n";
-            } else {
-                cout << "Error opening file for writing.\n";
-            }
-        } else {
-            cout << "Patient with ID " << id << " not found.\n";
-        }
-    }
-
     void deletePatient(int id) {
         for (auto it = patients.begin(); it != patients.end(); ++it) {
             if (it->id == id) {
@@ -205,10 +185,9 @@ int main() {
         cout << "1. Show Doctors List\n";
         cout << "2. Add Patient\n";
         cout << "3. View Patients\n";
-        cout << "4. Save Prescription\n";
-        cout << "5. Delete Patient\n";
-        cout << "6. Search Patient\n";
-        cout << "7. Exit\n";
+        cout << "4. Delete Patient\n";
+        cout << "5. Search Patient\n";
+        cout << "6. Exit\n";
         cout << "Enter your choice: ";
         cin >> choice;
 
@@ -245,27 +224,22 @@ int main() {
             hms.viewPatients();
             break;
         case 4:
-            cout << "Enter Patient ID to save prescription: ";
-            cin >> id;
-            hms.savePrescription(id);
-            break;
-        case 5:
             cout << "Enter Patient ID to delete: ";
             cin >> id;
             hms.deletePatient(id);
             break;
-        case 6:
+        case 5:
             cout << "Enter Patient ID to search: ";
             cin >> id;
             hms.searchPatient(id);
             break;
-        case 7:
+        case 6:
             cout << "Exiting...\n";
             break;
         default:
             cout << "Invalid choice. Try again.\n";
         }
-    } while (choice != 7);
+    } while (choice != 6);
 
     return 0;
 }
